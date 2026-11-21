@@ -38,7 +38,23 @@ export class Game {
       beacon.position.set(x,2.5,z); this.scene.add(beacon);
     }
     const sky = new THREE.Mesh(new THREE.SphereGeometry(70,24,16), new THREE.MeshBasicMaterial({color:0x91b9d0,side:THREE.BackSide})); this.scene.add(sky);
+    if (this.practice) this.buildPracticeTargets();
     this.camera.position.set(0,1.7,8); this.scene.add(this.camera);
+  }
+  buildPracticeTargets() {
+    const spots = [[-9,0,-9],[9,0,-9],[-9,0,9],[9,0,9],[0,0,-13],[0,0,13]];
+    spots.forEach((pos,i) => {
+      const group = new THREE.Group();
+      const color = i%2 ? 0xffb45e : 0x52dfff;
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(.65,.8,.25,12),this.mat(0x263d55));
+      base.position.y=.12; group.add(base);
+      const core = new THREE.Mesh(new THREE.SphereGeometry(.48,16,12),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.65,roughness:.35}));
+      core.position.y=1.25; group.add(core);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(.78,.07,8,24),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.8}));
+      ring.rotation.x=Math.PI/2; ring.position.y=.3; group.add(ring);
+      group.position.set(pos[0],0,pos[2]); this.scene.add(group);
+      this.practiceTargets.push({group,x:pos[0],z:pos[2],active:true});
+    });
   }
   bindControls() {
     addEventListener("keydown", e => {
@@ -67,7 +83,27 @@ export class Game {
   updateJoy(e,joy,knob){const r=joy.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),m=Math.max(1,Math.hypot(dx,dy)),scale=Math.min(1,42/m);this.joy={x:dx/m*scale,y:dy/m*scale};knob.style.transform=`translate(${this.joy.x*42}px,${this.joy.y*42}px)`;}
   look(dx,dy){this.yaw-=dx*.0022;this.pitch-=dy*.0022;this.pitch=Math.max(-1.25,Math.min(1.25,this.pitch));}
   jump(){if(this.onGround){this.velocityY=6.2;this.onGround=false;}}
-  tag(){const now=performance.now();if(now-this.lastTag<500)return;this.lastTag=now;this.socket.emit("tag");}
+  tag(){
+    const now=performance.now(); if(now-this.lastTag<500)return; this.lastTag=now;
+    if (!this.practice) { this.socket.emit("tag"); return; }
+    let target=null, nearest=2.9;
+    for (const item of this.practiceTargets) {
+      if (!item.active) continue;
+      const d=Math.hypot(item.x-this.player.x,item.z-this.player.z);
+      if(d<nearest){nearest=d;target=item;}
+    }
+    if (!target) { this.showPracticeToast("Move closer to a glowing target!"); return; }
+    target.active=false; target.group.visible=false; this.practiceScore++;
+    this.onPracticeScore(this.practiceScore);
+    this.showPracticeToast("Target tagged! Score: "+this.practiceScore);
+    setTimeout(()=>{target.active=true;target.group.visible=true;},1800);
+  }
+  showPracticeToast(message) {
+    const el=document.getElementById("toast"); if(!el)return;
+    el.textContent=message;el.classList.add("show");clearTimeout(this.toastTimer);
+    this.toastTimer=setTimeout(()=>el.classList.remove("show"),1600);
+  }
+  dispose(){this.started=false;removeEventListener("resize",this.resize);this.renderer.dispose();this.renderer.domElement.remove();}
   setSelfPosition(p){if(!p)return;this.player.x=p.x;this.player.y=p.y;this.player.z=p.z;}
   start(){if(this.started)return;this.started=true;this.animate();}
   syncPlayers(){
@@ -85,6 +121,6 @@ export class Game {
     if(this.keys.Space){this.jump();this.keys.Space=false;}
     this.velocityY-=17*dt;this.player.y+=this.velocityY*dt;if(this.player.y<=1){this.player.y=1;this.velocityY=0;this.onGround=true;}
     this.camera.position.set(this.player.x,this.player.y+.68,this.player.z);this.camera.rotation.set(this.pitch,this.yaw,0);
-    const now=performance.now();if(now-this.lastMove>50){this.lastMove=now;this.socket.emit("move",{...this.player,yaw:this.yaw,pitch:this.pitch});}
+    const now=performance.now();if(!this.practice && now-this.lastMove>50){this.lastMove=now;this.socket.emit("move",{...this.player,yaw:this.yaw,pitch:this.pitch});}
   }
 }
