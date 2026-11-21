@@ -13,14 +13,12 @@ const COLORS = ["#42d9ff", "#ffca58", "#b48cff", "#70e1a1", "#ff7d9d", "#f58b4b"
 app.use(express.static(path.join(__dirname, "..", "public")));
 app.get("/health", (_req, res) => res.json({ ok: true, game: "Kirko", rooms: rooms.size }));
 
-function makeCode() {
-  return Math.random().toString(36).slice(2, 6).toUpperCase();
-}
+function makeCode() { return Math.random().toString(36).slice(2, 6).toUpperCase(); }
 function cleanName(value) {
   return String(value || "Player").replace(/[^a-zA-Z0-9 _-]/g, "").trim().slice(0, 16) || "Player";
 }
 function makeRoom(code) {
-  const room = { code, players: new Map(), createdAt: Date.now() };
+  const room = { code, players: new Map() };
   rooms.set(code, room);
   return room;
 }
@@ -54,7 +52,7 @@ function joinRoom(socket, code, name) {
   const player = {
     id: socket.id, name: cleanName(name), color: COLORS[Math.floor(Math.random() * COLORS.length)],
     x: (Math.random() - 0.5) * 12, y: 1, z: (Math.random() - 0.5) * 12,
-    yaw: 0, pitch: 0, score: 0, tags: 0, lastFire: 0
+    yaw: 0, pitch: 0, score: 0, tags: 0, lastTag: 0
   };
   room.players.set(socket.id, player);
   socket.join(code);
@@ -88,38 +86,29 @@ io.on("connection", socket => {
     socket.to(room.code).emit("playerMoved", { id: p.id, x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch });
   });
 
-  socket.on("fire", data => {
+  socket.on("tag", () => {
     const room = rooms.get(socket.data.roomCode);
-    const shooter = room && room.players.get(socket.id);
-    if (!shooter || !data || Date.now() - shooter.lastFire < 280) return;
-    shooter.lastFire = Date.now();
-    const origin = data.origin || {};
-    const dir = data.direction || {};
-    const dx = Number(dir.x) || 0, dy = Number(dir.y) || 0, dz = Number(dir.z) || -1;
-    io.to(room.code).emit("orb", {
-      id: Math.random().toString(36).slice(2), owner: socket.id,
-      origin: { x: Number(origin.x) || shooter.x, y: Number(origin.y) || 1.5, z: Number(origin.z) || shooter.z },
-      direction: { x: dx, y: dy, z: dz }, color: shooter.color
+    const tagger = room && room.players.get(socket.id);
+    if (!tagger || Date.now() - tagger.lastTag < 900) return;
+    tagger.lastTag = Date.now();
+    let target = null;
+    let nearest = 2.35;
+    for (const player of room.players.values()) {
+      if (player.id === tagger.id) continue;
+      const distance = Math.hypot(player.x - tagger.x, player.z - tagger.z);
+      if (distance < nearest) { nearest = distance; target = player; }
+    }
+    if (!target) return socket.emit("tagMiss");
+    tagger.score += 1;
+    tagger.tags += 1;
+    target.x = (Math.random() - 0.5) * 22;
+    target.z = (Math.random() - 0.5) * 22;
+    target.y = 1;
+    io.to(room.code).emit("tagged", {
+      taggerId: tagger.id, tagger: tagger.name,
+      targetId: target.id, target: target.name, score: tagger.score
     });
-    let target = null, best = 22;
-    const len = Math.hypot(dx, dy, dz) || 1;
-    for (const p of room.players.values()) {
-      if (p.id === shooter.id) continue;
-      const vx = p.x - shooter.x, vy = (p.y + 0.2) - (shooter.y + 0.5), vz = p.z - shooter.z;
-      const along = (vx * dx + vy * dy + vz * dz) / len;
-      if (along <= 0 || along > 22) continue;
-      const px = vx - along * dx / len, py = vy - along * dy / len, pz = vz - along * dz / len;
-      const distance = Math.hypot(px, py, pz);
-      if (distance < 1.05 && along < best) { best = along; target = p; }
-    }
-    if (target) {
-      shooter.score += 1; shooter.tags += 1;
-      target.x = (Math.random() - 0.5) * 22;
-      target.z = (Math.random() - 0.5) * 22;
-      target.y = 1;
-      io.to(room.code).emit("tagged", { shooterId: shooter.id, shooter: shooter.name, targetId: target.id, target: target.name, score: shooter.score });
-      snapshot(room);
-    }
+    snapshot(room);
   });
 
   socket.on("disconnect", () => leaveRoom(socket));
