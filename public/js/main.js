@@ -3,8 +3,23 @@ import { Game } from "./game.js";
 const socket = window.io();
 const $ = id => document.getElementById(id);
 const menu = $("menu-screen"), hud = $("hud"), loading = $("loading");
-let game = null, selfId = null, players = new Map(), joined = false;
+let game = null, selfId = null, players = new Map(), joined = false, practiceMode = false;
 
+function startPractice() {
+  practiceMode = true; joined = false; selfId = "practice";
+  players.clear();
+  const name = $("player-name").value.trim() || "Player";
+  players.set(selfId, { id:selfId, name, color:"#52dfff", x:0, y:1, z:8, yaw:0, score:0, tags:0 });
+  menu.classList.add("hidden"); hud.classList.remove("hidden"); setLoading(false);
+  $("hud-room").textContent = "PRACTICE";
+  $("self-name").textContent = name.toUpperCase();
+  $("online-count").textContent = "PRACTICE ARENA";
+  if (game) { game.dispose?.(); game = null; }
+  game = new Game({ socket, getPlayers: () => players, getSelfId: () => selfId, practice: true,
+    onPracticeScore: score => { const player = players.get(selfId); if (player) player.score = score; renderScores(); } });
+  game.start(); game.syncPlayers(); renderScores();
+  showToast("Practice arena ready — explore and tag the glowing targets!");
+}
 function showToast(message) {
   const el = $("toast"); el.textContent = message; el.classList.add("show");
   setTimeout(() => el.classList.remove("show"), 1800);
@@ -15,11 +30,12 @@ function join(options) {
   setLoading(true);
   socket.emit("join", { name: $("player-name").value, ...options });
 }
+$("practice-btn").onclick = startPractice;
 $("quick-btn").onclick = () => join({ quick: true });
 $("join-btn").onclick = () => join({ code: $("room-code").value });
 $("create-btn").onclick = () => join({ code: Math.random().toString(36).slice(2, 6).toUpperCase() });
 $("room-code").addEventListener("keydown", e => { if (e.key === "Enter") join({ code: $("room-code").value }); });
-$("leave-btn").onclick = () => { socket.disconnect(); location.reload(); };
+$("leave-btn").onclick = () => { if (!practiceMode) socket.disconnect(); location.reload(); };
 $("sound-btn").onclick = () => showToast("Sound effects are coming in a future update.");
 
 socket.on("joinError", msg => { setLoading(false); $("menu-error").textContent = msg; });
@@ -28,6 +44,7 @@ socket.on("joined", data => {
   data.players.forEach(p => players.set(p.id, p));
   menu.classList.add("hidden"); hud.classList.remove("hidden"); setLoading(false);
   $("hud-room").textContent = data.code; $("self-name").textContent = $("player-name").value.toUpperCase();
+  practiceMode = false;
   if (!game) game = new Game({ socket, getPlayers: () => players, getSelfId: () => selfId });
   game.start(); game.syncPlayers(); renderScores();
   showToast("Welcome to arena " + data.code);
