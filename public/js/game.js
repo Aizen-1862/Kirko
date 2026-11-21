@@ -1,8 +1,9 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 
 export class Game {
-  constructor({ socket, getPlayers, getSelfId }) {
+  constructor({ socket, getPlayers, getSelfId, practice = false, onPracticeScore = () => {} }) {
     this.socket = socket; this.getPlayers = getPlayers; this.getSelfId = getSelfId;
+    this.practice = practice; this.onPracticeScore = onPracticeScore; this.practiceScore = 0; this.practiceTargets = [];
     this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x91b9d0); this.scene.fog = new THREE.Fog(0x91b9d0, 28, 75);
     this.camera = new THREE.PerspectiveCamera(76, innerWidth / innerHeight, .1, 120);
     this.camera.rotation.order = "YXZ";
