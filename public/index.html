@@ -11,19 +11,17 @@
 </head>
 <body>
   <div id="game-root">
-    <div id="scene"></div>
-    <div class="vignette"></div>
+    <div id="scene"></div><div class="vignette"></div>
     <header class="topbar">
       <a class="brand" href="#"><span class="brand-mark">K</span><span>KIRKO<span class="brand-dot">.</span></span></a>
       <div class="top-status"><span class="live-dot"></span><span id="online-count">ONLINE ARENA</span></div>
       <button id="sound-btn" class="icon-btn" aria-label="Toggle sound">♫</button>
     </header>
-
     <section id="menu-screen" class="screen">
       <div class="hero-copy">
         <div class="eyebrow"><span></span> MULTIPLAYER ARENA</div>
         <h1>ENTER THE<br><em>ARENA.</em></h1>
-        <p>Fast matches. Clean shots. One more round.</p>
+        <p>Move fast. Tag your rivals. Own the arena.</p>
       </div>
       <div class="join-card">
         <div class="card-kicker">PLAYER SETUP</div>
@@ -37,20 +35,18 @@
       </div>
       <div class="feature-strip"><span>◈ 3D ARENAS</span><span>◈ REAL-TIME MULTIPLAYER</span><span>◈ MOBILE + DESKTOP</span></div>
     </section>
-
     <section id="hud" class="hidden">
       <div class="hud-top"><div class="room-pill">ROOM <b id="hud-room">----</b></div><div class="match-pill"><span class="live-dot"></span> LIVE MATCH</div><button id="leave-btn" class="leave-btn">LEAVE</button></div>
       <div class="crosshair"><i></i><i></i></div>
       <div class="scoreboard"><div class="score-title">ARENA SCORE</div><div id="score-list"></div></div>
       <div class="feed" id="feed"></div>
-      <div class="bottom-hud"><div class="player-status"><span class="status-dot"></span><span id="self-name">PLAYER</span></div><div class="controls-hint">WASD MOVE&nbsp; · &nbsp;MOUSE AIM&nbsp; · &nbsp;CLICK FIRE</div></div>
+      <div class="bottom-hud"><div class="player-status"><span class="status-dot"></span><span id="self-name">PLAYER</span></div><div class="controls-hint">WASD MOVE&nbsp; · &nbsp;MOUSE LOOK&nbsp; · &nbsp;E TAG</div></div>
       <div class="mobile-controls">
         <div id="joystick" class="joystick"><div class="joy-knob"></div></div>
-        <div class="mobile-actions"><button id="jump-btn">JUMP</button><button id="fire-btn">FIRE</button></div>
+        <div class="mobile-actions"><button id="jump-btn">JUMP</button><button id="tag-btn">TAG</button></div>
         <div id="look-pad" class="look-pad">DRAG TO LOOK</div>
       </div>
     </section>
-
     <div id="loading" class="loading hidden"><div class="loader"></div><span>CONNECTING TO ARENA</span></div>
     <div id="toast" class="toast"></div>
   </div>
