@@ -4,16 +4,17 @@ export class Game {
   constructor({ socket, getPlayers, getSelfId, practice = false, onPracticeScore = () => {} }) {
     this.socket = socket; this.getPlayers = getPlayers; this.getSelfId = getSelfId;
     this.practice = practice; this.onPracticeScore = onPracticeScore; this.practiceScore = 0; this.practiceTargets = [];
-    this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x91b9d0); this.scene.fog = new THREE.Fog(0x91b9d0, 28, 75);
+    this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x101d35); this.scene.fog = new THREE.Fog(0x101d35, 34, 92);
     this.camera = new THREE.PerspectiveCamera(76, innerWidth / innerHeight, .1, 120);
     this.camera.rotation.order = "YXZ";
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7)); this.renderer.setSize(innerWidth, innerHeight);
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); this.renderer.setSize(innerWidth, innerHeight);
     this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.autoUpdate = true; this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.18;
     document.getElementById("scene").appendChild(this.renderer.domElement);
     this.clock = new THREE.Clock(); this.keys = {}; this.yaw = 0; this.pitch = 0; this.velocityY = 0; this.onGround = true;
-    this.remote = new Map(); this.lastMove = 0; this.lastTag = 0; this.started = false;
+    this.remote = new Map(); this.animated = []; this.lastMove = 0; this.lastTag = 0; this.started = false;
     this.player = { x: 0, y: 1, z: 8 };
     this.buildWorld(); this.bindControls();
     this.resize = () => { this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(innerWidth, innerHeight); };
@@ -24,22 +25,64 @@ export class Game {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), material); m.position.set(x,y,z); m.castShadow = true; m.receiveShadow = true; this.scene.add(m); return m;
   }
   buildWorld() {
-    this.scene.add(new THREE.HemisphereLight(0xe8f7ff, 0x42536d, 2.1));
-    const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(-10,22,12); sun.castShadow = true; sun.shadow.mapSize.set(1024,1024); this.scene.add(sun);
-    this.box(0,-.35,0,38,.7,38,this.mat(0x25374b));
-    const grid = new THREE.GridHelper(38,38,0x4f829b,0x3b566c); grid.position.y=.012; this.scene.add(grid);
-    const wall = this.mat(0x354e68), cyan = this.mat(0x2bb8d2), orange = this.mat(0xe58b55), purple = this.mat(0x7762b0);
-    this.box(0,2,-19,38,4,.8,wall); this.box(0,2,19,38,4,.8,wall); this.box(-19,2,0,.8,4,38,wall); this.box(19,2,0,.8,4,38,wall);
-    this.box(-8,1.1,-5,5,2,2,cyan); this.box(8,1.1,5,5,2,2,orange);
-    this.box(0,.8,0,3,1.6,3,purple); this.box(-12,.7,8,3,1.4,3,wall); this.box(12,.7,-8,3,1.4,3,wall);
-    for (let i=0;i<12;i++) {
-      const a=i*Math.PI/6, x=Math.cos(a)*15, z=Math.sin(a)*15;
-      this.box(x,.7,z,1.5,1.4,1.5,this.mat(i%2?0x3b718b:0x59647e));
-      const beacon = new THREE.Mesh(new THREE.BoxGeometry(.35,2,.35), this.mat(i%2?0x4de1ff:0xffb45e));
-      beacon.position.set(x,2.5,z); this.scene.add(beacon);
+    const hemi = new THREE.HemisphereLight(0xc8eaff, 0x17233c, 1.9); this.scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xe4f5ff, 2.6);
+    sun.position.set(-12, 24, 10); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.left = -24; sun.shadow.camera.right = 24; sun.shadow.camera.top = 24; sun.shadow.camera.bottom = -24;
+    this.scene.add(sun);
+    const cyanGlow = new THREE.PointLight(0x27cfff, 32, 34, 2); cyanGlow.position.set(-11, 5, -7); this.scene.add(cyanGlow);
+    const amberGlow = new THREE.PointLight(0xff9d55, 26, 30, 2); amberGlow.position.set(12, 4, 9); this.scene.add(amberGlow);
+
+    const floorMat = new THREE.MeshStandardMaterial({color:0x17263d,roughness:.72,metalness:.22});
+    this.box(0,-.4,0,42,.8,42,floorMat);
+    const grid = new THREE.GridHelper(42,42,0x36c8ed,0x29445f); grid.position.y=.012;
+    grid.material.opacity=.34; grid.material.transparent=true; this.scene.add(grid);
+    const wall = this.mat(0x263c59,.72), trim = new THREE.MeshStandardMaterial({color:0x38cfff,emissive:0x087da8,emissiveIntensity:1.1,metalness:.55,roughness:.3});
+    const orangeTrim = new THREE.MeshStandardMaterial({color:0xffad68,emissive:0x9d4219,emissiveIntensity:.9,metalness:.45,roughness:.35});
+    const cyan = this.mat(0x267b9b,.45), orange = this.mat(0x9b593c,.48), purple = this.mat(0x514b85,.42);
+    this.box(0,2,-20,42,4,.9,wall); this.box(0,2,20,42,4,.9,wall);
+    this.box(-20,2,0,.9,4,42,wall); this.box(20,2,0,.9,4,42,wall);
+    // Glowing perimeter rails
+    this.box(0,3.86,-19.48,39,.08,.08,trim); this.box(0,3.86,19.48,39,.08,.08,orangeTrim);
+    this.box(-19.48,3.86,0,.08,.08,39,trim); this.box(19.48,3.86,0,.08,.08,39,orangeTrim);
+
+    // Arena cover and raised-looking architectural blocks
+    this.box(-8,1.05,-5,5.2,2.1,2.3,cyan); this.box(8,1.05,5,5.2,2.1,2.3,orange);
+    this.box(0,.9,0,3.4,1.8,3.4,purple); this.box(-12,.72,8,3.2,1.44,3.2,wall); this.box(12,.72,-8,3.2,1.44,3.2,wall);
+    this.box(-8,2.15,-5,5.35,.1,2.42,trim); this.box(8,2.15,5,5.35,.1,2.42,orangeTrim);
+    this.box(0,1.86,0,3.55,.1,3.55,trim);
+
+    // Four signature pylons with animated energy rings
+    for(let i=0;i<4;i++){
+      const x=i%2?-15:15, z=i<2?-15:15, color=i%2?0xffad68:0x39d9ff;
+      const core=new THREE.Mesh(new THREE.CylinderGeometry(.42,.62,4.8,8),this.mat(0x263b56,.38));
+      core.position.set(x,2.4,z); core.castShadow=true; this.scene.add(core);
+      const band=new THREE.Mesh(new THREE.TorusGeometry(.78,.09,8,28),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:1.35,metalness:.4,roughness:.25}));
+      band.position.set(x,2.5,z); band.rotation.x=Math.PI/2; this.scene.add(band); this.animated.push({mesh:band,spin:.65});
+      const cap=new THREE.Mesh(new THREE.ConeGeometry(.62,.9,8),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.55}));
+      cap.position.set(x,5.1,z); this.scene.add(cap);
     }
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(70,24,16), new THREE.MeshBasicMaterial({color:0x91b9d0,side:THREE.BackSide})); this.scene.add(sky);
-    if (this.practice) this.buildPracticeTargets();
+    // Smaller cover pillars and glowing floor markers
+    for(let i=0;i<12;i++){
+      const a=i*Math.PI/6, x=Math.cos(a)*15.5, z=Math.sin(a)*15.5;
+      this.box(x,.75,z,1.5,1.5,1.5,this.mat(i%2?0x315c78:0x4b5276,.58));
+      const marker=new THREE.Mesh(new THREE.BoxGeometry(.12,.04,1.05),i%2?trim:orangeTrim);
+      marker.position.set(x,.78,z); marker.rotation.y=-a; this.scene.add(marker);
+    }
+    // Floating rings give the arena depth without obscuring movement
+    for(let i=0;i<3;i++){
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(3.4+i*.65,.055,8,64),i===1?orangeTrim:trim);
+      ring.position.set(i===1?0:-13,5.8+i*.55,i===1?0:13); ring.rotation.x=Math.PI/2.5; this.scene.add(ring);
+      this.animated.push({mesh:ring,spin:i%2?.18:-.14});
+    }
+    // Distant star field
+    const points=[];
+    for(let i=0;i<260;i++){const a=Math.random()*Math.PI*2,r=35+Math.random()*38;points.push(Math.cos(a)*r,8+Math.random()*30,Math.sin(a)*r);}
+    const starGeo=new THREE.BufferGeometry(); starGeo.setAttribute("position",new THREE.Float32BufferAttribute(points,3));
+    const stars=new THREE.Points(starGeo,new THREE.PointsMaterial({color:0x9ddfff,size:.16,transparent:true,opacity:.65}));
+    this.scene.add(stars);
+    const sky=new THREE.Mesh(new THREE.SphereGeometry(100,24,16),new THREE.MeshBasicMaterial({color:0x101d35,side:THREE.BackSide})); this.scene.add(sky);
+    if(this.practice)this.buildPracticeTargets();
     this.camera.position.set(0,1.7,8); this.scene.add(this.camera);
   }
   buildPracticeTargets() {
@@ -112,7 +155,7 @@ export class Game {
     for(const [id,obj] of this.remote){if(!list.has(id)){this.scene.remove(obj.group);this.remote.delete(id);}}
     for(const p of list.values()){if(p.id===self)continue;let obj=this.remote.get(p.id);if(!obj){const group=new THREE.Group();const body=new THREE.Mesh(new THREE.BoxGeometry(.7,1.15,.42),this.mat(p.color));body.position.y=.95;body.castShadow=true;const head=new THREE.Mesh(new THREE.BoxGeometry(.42,.42,.42),this.mat(0xe3c5a5));head.position.y=1.75;group.add(body,head);const ring=new THREE.Mesh(new THREE.TorusGeometry(.52,.045,6,20),this.mat(p.color));ring.rotation.x=Math.PI/2;ring.position.y=.12;group.add(ring);this.scene.add(group);obj={group};this.remote.set(p.id,obj);}obj.group.position.set(p.x,0,p.z);obj.group.rotation.y=p.yaw||0;}
   }
-  animate=()=>{if(!this.started)return;requestAnimationFrame(this.animate);const dt=Math.min(this.clock.getDelta(),.04);this.update(dt);this.renderer.render(this.scene,this.camera);};
+  animate=()=>{if(!this.started)return;requestAnimationFrame(this.animate);const dt=Math.min(this.clock.getDelta(),.04);this.update(dt);for(const item of this.animated)item.mesh.rotation.y+=item.spin*dt;this.renderer.render(this.scene,this.camera);};
   update(dt){
     const forward=(this.keys.KeyW||this.keys.ArrowUp?1:0)-(this.keys.KeyS||this.keys.ArrowDown?1:0)-this.joy.y;
     const side=(this.keys.KeyD||this.keys.ArrowRight?1:0)-(this.keys.KeyA||this.keys.ArrowLeft?1:0)+this.joy.x;
