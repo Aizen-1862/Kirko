@@ -1,6 +1,6 @@
 # KIRKO
 
-A cross-platform browser arena FPS prototype with low-poly 3D visuals and real-time multiplayer rooms.
+A cross-platform multiplayer 3D arena-tag game with low-poly visuals, quick matchmaking, and private rooms.
 
 ## Run locally
 1. Install Node.js 20 or newer.
@@ -9,11 +9,11 @@ A cross-platform browser arena FPS prototype with low-poly 3D visuals and real-t
 4. Open `http://localhost:3000` in two browser tabs to test multiplayer.
 
 ## Deploy
-Deploy this repository as a Node web service on Render. The included `render.yaml` configures the service. The game server serves the frontend and Socket.IO from the same origin.
+The included `render.yaml` configures a free Render web service. The Node server serves the frontend and Socket.IO from the same origin.
 
 ## Controls
-- Desktop: WASD to move, mouse to look, click to launch an energy orb, Space to jump, Esc to release pointer lock.
-- Mobile: on-screen movement pad, drag the look area, and tap FIRE / JUMP.
+- Desktop: WASD to move, mouse to look, E to tag nearby players, Space to jump.
+- Mobile: on-screen movement pad, drag the look area, and tap TAG / JUMP.
 
-## Prototype notes
-This is an original, non-graphic arena game prototype using simple geometric arena art and colorful energy-orb tagging. It is not affiliated with or a copy of Kirka.io. Before a public production release, add stronger anti-cheat validation, moderation, persistence, rate limits, and monitoring.
+## Game
+KIRKO is an original, non-graphic multiplayer arena game. Players move around a colorful obstacle arena and score points by tagging nearby players. It is not affiliated with or a copy of Kirka.io. This is an early playable prototype; stronger movement validation, moderation, persistent accounts, and monitoring are needed before a public production release.
